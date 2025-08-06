@@ -1,33 +1,39 @@
 #!/usr/bin/env bash
 # Script to display DNS information about subdomains
 
-# Function to perform DNS query and format output
+# Function to get DNS record info
 get_subdomain_info() {
     local domain=$1
     local subdomain=$2
     local full_domain="${subdomain}.${domain}"
 
-    # Perform dig and extract relevant info
-    local record=$(dig $full_domain | grep -A1 "ANSWER SECTION:" | tail -n1)
+    # Get DNS record
+    local record=$(dig $full_domain +short)
 
-    # Use awk to parse the info
-    echo "$record" | awk -v sub="$subdomain" '
+    # Get record type
+    local record_type=$(dig $full_domain | grep -A1 "ANSWER SECTION:" | tail -n1 | awk '{print $4}')
+
+    # Use awk to format output (avoid reserved word "sub")
+    echo "$record" | awk -v sub_name="$subdomain" -v type="$record_type" '
     {
-        if (NF >= 5) {
-            printf "The subdomain %s is a %s record and points to %s\n", sub, $4, $5
-        }
+        printf "The subdomain %s is a %s record and points to %s\n", sub_name, type, $1
     }'
 }
 
-# Main script logic
+# Main logic
 domain=$1
 subdomain=$2
 
-# Check if only domain is provided
+# Check if domain param is missing
+if [ -z "$domain" ]; then
+    echo "Usage: $0 domain [subdomain]"
+    exit 1
+fi
+
 if [ -z "$subdomain" ]; then
     for sub in www lb-01 web-01 web-02; do
-        get_subdomain_info $domain $sub
+        get_subdomain_info "$domain" "$sub"
     done
 else
-    get_subdomain_info $domain $subdomain
+    get_subdomain_info "$domain" "$subdomain"
 fi
