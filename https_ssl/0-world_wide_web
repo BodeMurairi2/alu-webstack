@@ -1,38 +1,37 @@
 #!/usr/bin/env bash
-# Script to display DNS info for subdomains
+# Script to audit subdomains and return full sentence format
 
-# Function to get subdomain info
+# Function to get info for a single subdomain
 get_subdomain_info() {
     local domain=$1
     local sub=$2
-    local mode=$3
     local fqdn="${sub}.${domain}"
 
-    local ip=$(dig "$fqdn" +short | head -n1)
+    # Get IP address and record type
+    local dig_result=$(dig "$fqdn" +short | head -n1)
     local record_type=$(dig "$fqdn" | grep -A1 "ANSWER SECTION:" | tail -n1 | awk '{print $4}')
 
-    if [[ -n "$ip" ]]; then
-        if [[ "$mode" == "single" ]]; then
-            echo "$ip"
-        else
-            echo "The subdomain $sub is a $record_type record and points to $ip"
-        fi
+    # Output only if result found
+    if [[ -n "$dig_result" && -n "$record_type" ]]; then
+        echo "The subdomain $sub is a $record_type record and points to $dig_result"
     fi
 }
 
-# Main
+# Input arguments
 domain="$1"
 subdomain="$2"
 
+# Ensure domain is provided
 if [[ -z "$domain" ]]; then
     echo "Usage: $0 domain [subdomain]"
     exit 1
 fi
 
-if [[ -z "$subdomain" ]]; then
-    for sub in www lb-01 web-01 web-02; do
-        get_subdomain_info "$domain" "$sub" "full"
-    done
+# If subdomain is passed
+if [[ -n "$subdomain" ]]; then
+    get_subdomain_info "$domain" "$subdomain"
 else
-    get_subdomain_info "$domain" "$subdomain" "single"
+    for sub in www lb-01 web-01 web-02; do
+        get_subdomain_info "$domain" "$sub"
+    done
 fi
