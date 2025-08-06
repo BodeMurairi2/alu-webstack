@@ -1,36 +1,34 @@
 #!/usr/bin/env bash
-# Script to display DNS info for subdomains of a domain
+# Script to display DNS information for subdomains of a domain
 
-# Function to get subdomain IP
-get_subdomain_ip() {
+# Function to get subdomain info
+get_subdomain_info() {
     local domain=$1
-    local sub=$2
-    local full_domain="${sub}.${domain}"
+    local subdomain=$2
+    local fqdn="${subdomain}.${domain}"
 
-    # Use dig to get record and parse with awk
-    dig "$full_domain" +short | awk -v subdomain="$sub" -v mode="$3" '
-    NR == 1 {
-        if (mode == "full") {
-            printf "The subdomain %s is a A record and points to %s\n", subdomain, $1
-        } else {
-            print $1
-        }
-    }'
+    # Run dig and extract the IP and record type
+    local result=$(dig "$fqdn" +short | head -n1)
+    local record_type=$(dig "$fqdn" | grep -A1 "ANSWER SECTION:" | tail -n1 | awk '{print $4}')
+
+    if [[ -n "$result" && -n "$record_type" ]]; then
+        echo "The subdomain $subdomain is a $record_type record and points to $result"
+    fi
 }
 
-# Main logic
-domain=$1
-subdomain=$2
+# Main script logic
+domain="$1"
+subdomain="$2"
 
-if [ -z "$domain" ]; then
+if [[ -z "$domain" ]]; then
     echo "Usage: $0 domain [subdomain]"
     exit 1
 fi
 
-if [ -z "$subdomain" ]; then
+if [[ -z "$subdomain" ]]; then
     for sub in www lb-01 web-01 web-02; do
-        get_subdomain_ip "$domain" "$sub" "full"
+        get_subdomain_info "$domain" "$sub"
     done
 else
-    get_subdomain_ip "$domain" "$subdomain" "ip_only"
+    get_subdomain_info "$domain" "$subdomain"
 fi
